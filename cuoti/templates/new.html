@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>{{ _("录错题") }}</h1>
+{% if not kids %}<div class="card empty">{{ _("还没有孩子账号，请家长先在“设置”里添加。") }}</div>
+{% elif not subs %}<div class="card empty">{{ _("你还没有负责的科目，请家长在“设置”里添加。") }}</div>{% else %}
+<form method="post" action="/new" enctype="multipart/form-data" class="card" id="add-form">
+  <label class="f">{{ _("孩子") }}</label>
+  <div class="chips big">
+    {% for k in kids %}<label><input type="radio" name="child_id" value="{{ k.id }}" required {{ 'checked' if k.id == child }}><span>{{ k.name }}{% if k.grade %} · {{ _("{n} 年级", n=k.grade) }}{% endif %}</span></label>{% endfor %}
+  </div>
+
+  <label class="f">{{ _("科目") }}</label>
+  <div class="chips big">
+    {% for s in subs %}<label><input type="radio" name="subject" value="{{ s }}" {{ 'checked' if s == subject }}><span>{{ s|subject }}</span></label>{% endfor %}
+  </div>
+
+  <label class="btn block" style="margin-top:14px;min-height:64px;font-size:18px">{{ _("📷 拍照 / 选照片") }}
+    <input type="file" name="photos" accept="image/*" multiple id="photos" style="display:none"></label>
+  <div class="photos" id="preview" style="margin-top:8px"></div>
+  {% if ai_ready %}<p class="muted small">{{ _("保存后 AI 会自动填写题目和答案。") }}</p>{% endif %}
+
+  <label class="f">{{ _("知识点") }} <span class="small">{{ _("（可不填）") }}</span></label>
+  <input type="text" name="topic" list="topics" id="topic" maxlength="60" placeholder="{{ _('例如：分数加减 / past tense / 阅读理解-概括') }}" autocomplete="off">
+  <datalist id="topics"></datalist>
+  <div class="chips" id="topic-chips" style="margin-top:8px"></div>
+
+  <label class="f">{{ _("错因") }}</label>
+  <div class="chips">
+    {% for c in cause_list %}<label><input type="checkbox" name="causes" value="{{ c }}"><span>{{ c }}</span></label>{% endfor %}
+  </div>
+
+  <details style="margin-top:12px">
+    <summary>{{ _("手动填写题目 / 答案 / 备注") }}</summary>
+    <label class="f">{{ _("题目文字") }}</label><textarea name="question_text" id="qtext" maxlength="5000"></textarea>
+    <label class="f">{{ _("孩子的答案") }}</label><input type="text" name="child_answer">
+    <label class="f">{{ _("正确答案 / 讲解") }}</label><textarea name="answer_text"></textarea>
+    <label class="f">{{ _("老师备注") }}</label><textarea name="note" placeholder="{{ _('例如：同类题上周也错过') }}"></textarea>
+  </details>
+
+  <p class="small" id="need" style="color:var(--bad);margin:16px 0 0"></p>
+  <div class="btns" style="margin-top:8px">
+    <button class="btn primary save" data-busy="{{ _('上传中…') }}">{{ _("保存") }}</button>
+    <button class="btn save" name="next" value="again" data-busy="{{ _('上传中…') }}">{{ _("保存并录下一道") }}</button>
+  </div>
+</form>
+{% endif %}
+{% endblock %}
+{% block script %}
+<script>
+const TOPICS = {{ topic_map|json|safe }};
+const chips = document.getElementById('topic-chips'), dl = document.getElementById('topics'), input = document.getElementById('topic');
+function drawTopics() {
+  const s = (document.querySelector('input[name=subject]:checked') || {}).value;
+  const list = TOPICS[s] || [];
+  dl.innerHTML = list.map(t => `<option value="${t.replace(/"/g,'&quot;')}">`).join('');
+  chips.innerHTML = '';
+  list.slice(0, 12).forEach(t => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small ghost'; b.textContent = t;
+    b.dataset.keep = 1; b.onclick = () => { input.value = t; }; chips.appendChild(b);
+  });
+}
+document.querySelectorAll('input[name=subject]').forEach(r => r.onchange = drawTopics); drawTopics();
+const MSG = {child: {{ _("请先选择孩子")|tojson }}, content: {{ _("请拍照或写下题目")|tojson }},
+             many: {{ _("一次最多 {n} 张照片", n=6)|tojson }}, big: {{ _("照片太大（最大 {n} MB）", n=20)|tojson }}};
+const photos = document.getElementById('photos'), need = document.getElementById('need');
+// Save stays off until there is a child and something to review; the server checks the same things again
+function checkForm() {
+  const files = [...photos.files];
+  let why = '';
+  if (!document.querySelector('input[name=child_id]:checked')) why = MSG.child;
+  else if (!files.length && !document.getElementById('qtext').value.trim()) why = MSG.content;
+  else if (files.length > 6) why = MSG.many;
+  else if (files.some(f => f.size > 20 * 1024 * 1024)) why = MSG.big;
+  need.textContent = why;
+  document.querySelectorAll('#add-form .save').forEach(b => b.disabled = !!why);
+  return !why;
+}
+photos.onchange = e => {
+  const p = document.getElementById('preview'); p.innerHTML = '';
+  [...e.target.files].forEach(f => { const i = document.createElement('img'); i.className = 'thumb'; i.src = URL.createObjectURL(f); p.appendChild(i); });
+  checkForm();
+};
+document.getElementById('add-form').addEventListener('input', checkForm);
+document.getElementById('add-form').addEventListener('change', checkForm);
+document.getElementById('add-form').addEventListener('submit', e => { if (!checkForm()) e.preventDefault(); }, true);
+checkForm();
+</script>
+{% endblock %}

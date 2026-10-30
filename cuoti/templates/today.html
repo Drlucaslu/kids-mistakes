@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "_macros.html" import qbody, tags, testbtns %}
+{% block body %}
+<div class="row between"><h1>{{ _("今日复测") }}</h1><a class="btn primary small" href="/new">{{ _("📷 录错题") }}</a></div>
+{% if not items %}<div class="card empty">{{ _("今天没有需要复测的题 🎉") }}</div>{% endif %}
+{% for m in items %}
+<div class="card">
+  <div class="row between">
+    <div class="row"><b>{{ m.child_name }}</b>{{ tags(m) }}</div>
+    <a class="small" href="/m/{{ m.id }}">{{ _("详情 ›") }}</a>
+  </div>
+  <div class="muted small" style="margin-top:4px">
+    {% if m.status == 'mastered' %}{{ _("已掌握 · 30 天抽查") }}{% else %}{{ _("第 {n} 轮 · 连对 {s}/3", n=m.stage + 1, s=m.correct_streak) }}{% endif %}
+    · {{ m.due_date|due }}
+    {% if m.practiced %} · <span class="tag good">{{ _("孩子已自己练过") }}</span>{% endif %}
+  </div>
+  {{ qbody(m, m.photos) }}
+  {% if m.answer_text %}<details><summary>{{ _("看答案") }}</summary><div class="answer">{{ m.answer_text }}</div></details>{% endif %}
+  {{ testbtns(m, '/today') }}
+</div>
+{% endfor %}
+
+{% if pending_variants %}
+<h2>{{ _("待审核的变式题（{n}）", n=pending_variants|length) }}</h2>
+<p class="muted">{{ _("采用后才会进入孩子的复习，可以先改字。") }}</p>
+{% for v in pending_variants %}
+<div class="card">
+  <div class="row"><b>{{ v.child_name }}</b>{{ tags(v) }}<a class="small" href="/m/{{ v.parent_id }}">{{ _("原题 ›") }}</a></div>
+  <form method="post" action="/v/{{ v.id }}/approve">
+    <input type="hidden" name="next" value="/today">
+    <label class="f">{{ _("题目") }}</label><textarea name="question_text">{{ v.question_text }}</textarea>
+    <label class="f">{{ _("答案") }}</label><textarea name="answer_text">{{ v.answer_text }}</textarea>
+    <div class="btns" style="margin-top:8px"><button class="btn primary small">{{ _("采用") }}</button>
+      <button class="btn small" formaction="/v/{{ v.id }}/reject">{{ _("丢弃") }}</button></div>
+  </form>
+</div>
+{% endfor %}
+{% endif %}
+
+{% if tasks_done or tasks_overdue %}
+<h2>{{ _("任务") }}</h2>
+<div class="card">
+  {% for t in tasks_done %}
+  <div class="row between" style="padding:6px 0">
+    <div class="grow"><b>{{ t.child_name }}</b> <span class="tag {{ t.subject }}">{{ t.subject|subject }}</span> {{ t.title }}
+      <div class="muted small">{{ _("孩子说完成了 · {t}", t=t.done_at[5:16].replace('T',' ')) }}</div></div>
+    <div class="btns">
+      <form method="post" action="/t/{{ t.id }}/confirm"><input type="hidden" name="next" value="/today"><button class="btn good small">{{ _("确认") }}</button></form>
+      <form method="post" action="/t/{{ t.id }}/reopen"><input type="hidden" name="next" value="/today"><button class="btn small">{{ _("退回") }}</button></form>
+    </div>
+  </div>
+  {% endfor %}
+  {% for t in tasks_overdue %}
+  <div class="row between" style="padding:6px 0">
+    <div class="grow"><b>{{ t.child_name }}</b> <span class="tag {{ t.subject }}">{{ t.subject|subject }}</span> {{ t.title }}
+      <div class="small" style="color:var(--bad)">{{ t.due_date|due }}</div></div>
+    <form method="post" action="/t/{{ t.id }}/confirm"><input type="hidden" name="next" value="/today"><button class="btn small">{{ _("已完成") }}</button></form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

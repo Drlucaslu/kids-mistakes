@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>{{ _("任务") }}</h1>
+<form method="post" action="/tasks" class="card">
+  <label class="f">{{ _("给谁") }}</label>
+  <div class="chips">{% for k in kids %}<label><input type="checkbox" name="child_ids" value="{{ k.id }}" {{ 'checked' if (child == k.id) or (not child and loop.length == 1) }}><span>{{ k.name }}</span></label>{% endfor %}</div>
+  <label class="f">{{ _("科目") }}</label>
+  <div class="chips">{% for s in subs %}<label><input type="radio" name="subject" value="{{ s }}" {{ 'checked' if loop.first }}><span>{{ s|subject }}</span></label>{% endfor %}</div>
+  <label class="f">{{ _("任务内容") }}</label><input type="text" name="title" required maxlength="200" placeholder="{{ _('例如：读 20 分钟英文书 / 完成练习册 P12') }}">
+  <label class="f">{{ _("说明（可选）") }}</label><input type="text" name="detail" maxlength="1000">
+  <div class="row" style="align-items:flex-end">
+    <div class="grow"><label class="f">{{ _("截止") }}</label><input type="date" name="due_date" value="{{ today }}" min="{{ today }}" required></div>
+    <div class="grow"><label class="f">{{ _("重复") }}</label><select name="repeat"><option value="none">{{ _("不重复") }}</option><option value="daily">{{ _("每天") }}</option><option value="weekly">{{ _("每周") }}</option></select></div>
+  </div>
+  <div class="btns" style="margin-top:12px"><button class="btn primary">{{ _("布置") }}</button></div>
+</form>
+
+<div class="row">{% for k in kids %}<a class="btn small {{ 'primary' if child == k.id }}" href="/tasks?child={{ k.id }}">{{ k.name }}</a>{% endfor %}
+  <a class="btn small {{ 'primary' if not child }}" href="/tasks">{{ _("全部") }}</a></div>
+<div class="card" style="margin-top:10px">
+  {% for t in rows %}
+  <div class="row between" style="padding:8px 0;border-top:{{ '0' if loop.first else '1px solid var(--line)' }}">
+    <div class="grow">
+      <b>{{ t.child_name }}</b> <span class="tag {{ t.subject }}">{{ t.subject|subject }}</span> {{ t.title }}
+      {% if t.repeat != 'none' %}<span class="tag">{{ _("每天") if t.repeat == 'daily' else _("每周") }}</span>{% endif %}
+      {% if t.detail %}<div class="muted small">{{ t.detail }}</div>{% endif %}
+      <div class="small">
+        {% if t.status == 'todo' %}<span class="tag {{ 'bad' if t.due_date < today }}">{{ _("待做") }}</span> <span class="muted">{{ t.due_date|due }}</span>
+        {% elif t.status == 'done' %}<span class="tag warn">{{ _("孩子说完成") }}</span>{% else %}<span class="tag good">{{ _("已确认") }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="btns">
+      {% if t.status in ('todo','done') %}<form method="post" action="/t/{{ t.id }}/confirm"><button class="btn small good">{{ _("确认") }}</button></form>{% endif %}
+      {% if t.status == 'done' %}<form method="post" action="/t/{{ t.id }}/reopen"><button class="btn small">{{ _("退回") }}</button></form>{% endif %}
+      {% if t.status == 'todo' %}<form method="post" action="/t/{{ t.id }}/cancel"><button class="btn small ghost">{{ _("取消") }}</button></form>{% endif %}
+    </div>
+  </div>
+  {% else %}<div class="muted">{{ _("还没有任务") }}</div>{% endfor %}
+</div>
+{% endblock %}

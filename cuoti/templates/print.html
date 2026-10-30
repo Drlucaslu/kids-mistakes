@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="{{ 'zh-CN' if lang() == 'zh' else 'en' }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ _("错题重做卷 {d}", d=today) }}</title>
+<link rel="stylesheet" href="/static/style.css?v={{ version }}">
+<style>body{background:#fff;padding:0} .card{border:0;border-bottom:1px dashed #bbb;border-radius:0} .space{height:90px}</style>
+</head><body><div class="wrap">
+<div class="row between noprint"><a href="javascript:history.back()">{{ _("← 返回") }}</a><button class="btn primary small" onclick="print()">{{ _("打印") }}</button></div>
+<h1>{{ _("错题重做卷 · {d}", d=today) }}</h1>
+<p class="muted">{{ _("共 {n} 题。先自己做，再对照最后一页的答案。", n=rows|length) }}</p>
+{% for m in rows %}
+<div class="card">
+  <b>{{ loop.index }}.</b> <span class="muted small">{{ m.subject|subject }}{% if m.topic %} · {{ m.topic }}{% endif %}{% if me.role != 'child' %} · {{ m.child_name }}{% endif %}</span>
+  {% if m.question_text %}<div class="qtext">{{ m.question_text }}</div>
+  {% elif m.photos %}<div class="photos">{% for f in m.photos %}<img src="/photo/{{ f }}" alt="">{% endfor %}</div>{% endif %}
+  <div class="space"></div>
+</div>
+{% endfor %}
+<div style="break-before:page"></div>
+<h2>{{ _("答案") }}</h2>
+{% for m in rows %}<p><b>{{ loop.index }}.</b> {{ m.answer_text or _("（老师讲解）") }}</p>{% endfor %}
+</div></body></html>

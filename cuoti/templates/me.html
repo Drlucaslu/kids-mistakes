@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "_macros.html" import qbody %}
+{% block body %}
+<h1>{{ _("{name}，今天加油 💪", name=me.name) }}</h1>
+<div class="stats">
+  <div class="stat"><b>{{ items|length }}</b><span>{{ _("今天要复习") }}</span></div>
+  <div class="stat"><b>{{ stats.week or 0 }}</b><span>{{ _("本周新掌握") }}</span></div>
+  <div class="stat"><b>{{ stats.mastered or 0 }}</b><span>{{ _("一共掌握") }}</span></div>
+</div>
+
+<h2>{{ _("📝 任务") }}</h2>
+<div class="card">
+  {% for t in tasks %}
+  <div class="row between" style="padding:6px 0">
+    <div class="grow">
+      <span class="tag {{ t.subject }}">{{ t.subject|subject }}</span> {% if t.status != 'todo' %}<s>{{ t.title }}</s>{% else %}<b>{{ t.title }}</b>{% endif %}
+      {% if t.detail %}<div class="muted small">{{ t.detail }}</div>{% endif %}
+      {% if t.status == 'todo' %}<div class="small" style="color:{{ 'var(--bad)' if t.due_date < today else 'var(--muted)' }}">{{ t.due_date|due }}</div>{% endif %}
+    </div>
+    {% if t.status == 'todo' %}<form method="post" action="/t/{{ t.id }}/done"><button class="btn good small">{{ _("完成 ✓") }}</button></form>
+    {% elif t.status == 'confirmed' %}<span class="tag good">{{ _("老师已确认") }}</span>{% else %}<span class="tag">{{ _("等老师确认") }}</span>{% endif %}
+  </div>
+  {% else %}<div class="muted">{{ _("今天没有任务") }}</div>{% endfor %}
+</div>
+
+<h2>{{ _("🔁 今天要复习的题") }}</h2>
+<p class="muted small">{{ _("在纸上重新做一遍，做完点“我做完了”，就能看答案。") }}</p>
+{% for m in items %}
+<div class="card">
+  <span class="tag {{ m.subject }}">{{ m.subject|subject }}</span>{% if m.topic %} <span class="tag">{{ m.topic }}</span>{% endif %}
+  {% if m.source == 'ai_variant' %} <span class="tag">{{ _("新题") }}</span>{% endif %}
+  {% if m.question_text %}
+  <div class="qtext" style="margin-top:8px">{{ m.question_text }}</div>
+  {% if m.photos %}<details><summary>{{ _("📷 看照片") }}</summary>{{ qbody({}, m.photos, big=True) }}</details>{% endif %}
+  {% else %}<div style="margin-top:8px">{{ qbody(m, m.photos, big=True) }}</div>{% endif %}
+  {% if m.practiced_today %}
+    {% if m.answer_text %}<div class="answer">{{ m.answer_text }}</div>{% endif %}
+    <p class="muted small">{{ _("已练习 ✓ 老师会检查") }}</p>
+  {% else %}
+    <form method="post" action="/m/{{ m.id }}/practice" style="margin-top:10px"><button class="btn primary">{{ _("我做完了") }}</button></form>
+  {% endif %}
+</div>
+{% else %}<div class="card empty">{{ _("今天没有要复习的题，太棒了 🎉") }}</div>{% endfor %}
+{% endblock %}

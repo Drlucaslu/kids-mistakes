@@ -1,0 +1,11 @@
+# Runtime image: the official Python image. The app itself ships as a code bundle (source + wheels)
+# uploaded to the app data directory, so no image registry is needed and no image is made public.
+image:
+  repository: docker.io/library/python
+  tag: '3.12-slim'
+  pullPolicy: IfNotPresent
+bundle:
+  version: '0.1.8'
+workloads:
+  cuotiben:
+    replicaCount: 1

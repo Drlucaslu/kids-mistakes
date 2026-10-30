@@ -1,0 +1,130 @@
+{{- $env := .Values.olaresEnv | default dict -}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cuotiben
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+    io.kompose.service: cuotiben
+    app.kubernetes.io/name: cuotiben
+spec:
+  replicas: {{ .Values.workloads.cuotiben.replicaCount }}
+  selector:
+    matchLabels:
+      io.kompose.service: cuotiben
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        io.kompose.service: cuotiben
+        app.kubernetes.io/name: cuotiben
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+    spec:
+      initContainers:
+      # Olares only lets its own (beclab) images run as root: prepare the data dir for UID 1000.
+      - name: init-perms
+        image: "docker.io/beclab/aboveos-busybox:1.37.0"
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c", "mkdir -p /data/bundle /data/runtime /data/app && chown 1000:1000 /data /data/runtime && chown -R 1000:1000 /data/app"]
+        resources: {requests: {cpu: 10m, memory: 32Mi}, limits: {cpu: 200m, memory: 128Mi}}
+        volumeMounts: [{name: data, mountPath: /data}]
+      # Offline install of the uploaded code bundle (code + wheels) into /data/runtime/<version>.
+      - name: install-bundle
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: IfNotPresent
+        securityContext: {runAsUser: 1000, runAsGroup: 1000, allowPrivilegeEscalation: false}
+        env:
+        - {name: BUNDLE_VERSION, value: {{ .Values.bundle.version | quote }}}
+        - {name: PIP_NO_CACHE_DIR, value: "1"}
+        - {name: HOME, value: /tmp}
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+          RT=/data/runtime/$BUNDLE_VERSION
+          B=/data/bundle/cuotiben-$BUNDLE_VERSION.tgz
+          if [ -f "$RT/.installed" ]; then echo "bundle $BUNDLE_VERSION already installed"; exit 0; fi
+          [ -f "$B" ] || { echo "missing $B — upload it with scripts/deploy-olares.sh"; exit 1; }
+          rm -rf "$RT" && mkdir -p "$RT"
+          tar xzf "$B" -C "$RT" 2>/dev/null
+          pip install -q --no-index --find-links "$RT/wheels" --target "$RT/site" -r "$RT/requirements.lock"
+          rm -rf "$RT/wheels" && touch "$RT/.installed"
+          ls /data/runtime | grep -v "^$BUNDLE_VERSION$" | while read old; do rm -rf "/data/runtime/$old"; done
+          echo "installed bundle $BUNDLE_VERSION"
+        resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: '1', memory: 512Mi}}
+        volumeMounts: [{name: data, mountPath: /data}]
+      containers:
+      - name: cuotiben
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        workingDir: /data/runtime/{{ .Values.bundle.version }}/src
+        command: ["python", "-m", "cuoti"]
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+          allowPrivilegeEscalation: false
+        ports:
+        - name: http
+          containerPort: 8080
+        env:
+        - name: PYTHONPATH
+          value: /data/runtime/{{ .Values.bundle.version }}/site:/data/runtime/{{ .Values.bundle.version }}/src
+        - {name: HOME, value: /tmp}
+        - {name: TZ, value: Asia/Singapore}
+        - {name: TIMEZONE, value: Asia/Singapore}
+        - {name: DATA_DIR, value: /data/app}
+        - {name: PORT, value: '8080'}
+        - name: INIT_PARENT_PIN
+          valueFrom: {secretKeyRef: {name: '{{ .Release.Name }}-secrets', key: INIT_PARENT_PIN}}
+        - name: ANTHROPIC_API_KEY
+          valueFrom: {secretKeyRef: {name: '{{ .Release.Name }}-secrets', key: ANTHROPIC_API_KEY}}
+        - name: MODEL_API_KEY
+          valueFrom: {secretKeyRef: {name: '{{ .Release.Name }}-secrets', key: MODEL_API_KEY}}
+        - name: MODEL_PROVIDER
+          value: {{ $env.MODEL_PROVIDER | default "anthropic" | toString | quote }}
+        - name: MODEL_NAME
+          value: {{ $env.MODEL_NAME | default "" | toString | quote }}
+        - name: MODEL_BASE_URL
+          value: {{ $env.MODEL_BASE_URL | default "" | toString | quote }}
+        startupProbe:
+          httpGet: {path: /health/live, port: 8080}
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          httpGet: {path: /health/live, port: 8080}
+          periodSeconds: 15
+          timeoutSeconds: 5
+        livenessProbe:
+          httpGet: {path: /health/live, port: 8080}
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 4
+        resources:
+          requests: {cpu: 100m, memory: 256Mi}
+          limits: {cpu: '1', memory: 1Gi}
+        volumeMounts: [{name: data, mountPath: /data}]
+      restartPolicy: Always
+      volumes:
+      - name: data
+        hostPath:
+          {{- if and .Values.sysVersion (semverCompare ">=1.12.3-0" (toString .Values.sysVersion)) }}
+          path: '{{ .Values.userspace.appData }}'
+          {{- else }}
+          path: '{{ .Values.userspace.appData }}/{{ .Release.Name }}'
+          {{- end }}
+          type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cuotiben-svc
+  namespace: '{{ .Release.Namespace }}'
+spec:
+  ports:
+  - {name: http, port: 8080, targetPort: 8080}
+  selector:
+    io.kompose.service: cuotiben

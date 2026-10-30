@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from "_macros.html" import qbody, tags, testbtns, progress %}
+{% block body %}
+<p><a href="javascript:history.back()">{{ _("← 返回") }}</a></p>
+<div class="card">
+  <div class="row between">
+    <div class="row"><b>{{ child.name }}</b>{{ tags(m) }}</div>
+    <span class="muted small">{{ m.created_at[:10] }}</span>
+  </div>
+  {% if parent %}<p class="muted small">{{ _("这是 <a href=\"/m/{id}\">原题</a> 的变式题", id=parent.id)|safe }}</p>{% endif %}
+  <div class="muted small" style="margin-top:4px">{{ progress(m, streak_needed) }}</div>
+  {% if m.ai_status == 'pending' %}<div class="flash" style="margin-top:8px">{{ _("AI 正在识别照片…") }} <a href="">{{ _("刷新") }}</a></div>
+  {% elif m.ai_status == 'failed' and me.role != 'child' %}<div class="flash err" style="margin-top:8px">{{ _("AI 识别失败：{e}", e=m.ai_error) }}</div>{% endif %}
+  <div style="margin-top:8px">{{ qbody(m, photos, big=True) }}</div>
+  {% if m.child_answer and me.role != 'child' %}<p class="muted">{{ _("孩子的答案：{a}", a=m.child_answer) }}</p>{% endif %}
+  {% if m.answer_text %}<details {{ 'open' if me.role != 'child' }}><summary>{{ _("答案") }}</summary><div class="answer">{{ m.answer_text }}</div></details>{% endif %}
+  {% if m.note and me.role != 'child' %}<p class="muted">{{ _("备注：{n}", n=m.note) }}</p>{% endif %}
+  {% if me.role != 'child' and m.approved and m.status != 'archived' and m.due_date and m.due_date <= today %}{{ testbtns(m, '') }}{% endif %}
+</div>
+
+{% if me.role != 'child' %}
+  {% if variants or m.source == 'tutor' %}
+  <h2>{{ _("变式练习") }}</h2>
+  {% for v in variants %}
+    <div class="card">
+      {% if v.approved %}
+        <div class="row between"><span>{{ tags(v) }}</span><a class="small" href="/m/{{ v.id }}">{{ _("详情 ›") }}</a></div>
+        <div class="qtext" style="margin-top:6px">{{ v.question_text }}</div>
+        <div class="muted small">{{ progress(v, streak_needed) }}</div>
+      {% else %}
+        <form method="post" action="/v/{{ v.id }}/approve">
+          <span class="tag warn">{{ _("待审核") }}</span>
+          <label class="f">{{ _("题目") }}</label><textarea name="question_text">{{ v.question_text }}</textarea>
+          <label class="f">{{ _("答案") }}</label><textarea name="answer_text">{{ v.answer_text }}</textarea>
+          <div class="btns" style="margin-top:8px"><button class="btn primary small">{{ _("采用") }}</button>
+            <button class="btn small" formaction="/v/{{ v.id }}/reject">{{ _("丢弃") }}</button></div>
+        </form>
+      {% endif %}
+    </div>
+  {% endfor %}
+  {% if m.source == 'tutor' %}
+    {% if m.variant_status == 'pending' %}<div class="flash">{{ _("AI 正在出题…") }} <a href="">{{ _("刷新") }}</a></div>
+    {% else %}
+      {% if m.variant_status.startswith('failed:') %}<div class="flash err">{{ _("上次生成失败：{e}", e=m.variant_status[7:]) }}</div>{% endif %}
+      <form method="post" action="/m/{{ m.id }}/variants"><button class="btn" {{ 'disabled' if not ai_ready }}>{{ _("✨ 让 AI 出 2 道变式题") }}</button>
+      {% if not ai_ready %}<span class="muted small">{{ _("（AI 未配置）") }}</span>{% endif %}</form>
+    {% endif %}
+  {% endif %}
+  {% endif %}
+
+  <details class="card" style="margin-top:18px">
+  <summary><b>{{ _("编辑 / 更多操作") }}</b></summary>
+  <form method="post" action="/m/{{ m.id }}/edit">
+    <label class="f">{{ _("知识点") }}</label>
+    <input type="text" name="topic" value="{{ m.topic }}" list="topics"><datalist id="topics">{% for t in topic_list %}<option value="{{ t }}">{% endfor %}</datalist>
+    <label class="f">{{ _("错因") }}</label>
+    <div class="chips">{% set mc = m.causes|split %}
+      {% for c in (cause_list + mc)|unique %}<label><input type="checkbox" name="causes" value="{{ c }}" {{ 'checked' if c in mc }}><span>{{ c }}</span></label>{% endfor %}
+    </div>
+    <label class="f">{{ _("题目文字") }}</label><textarea name="question_text">{{ m.question_text }}</textarea>
+    <label class="f">{{ _("孩子的答案") }}</label><input type="text" name="child_answer" value="{{ m.child_answer }}">
+    <label class="f">{{ _("正确答案 / 讲解") }}</label><textarea name="answer_text">{{ m.answer_text }}</textarea>
+    <label class="f">{{ _("老师备注") }}</label><textarea name="note">{{ m.note }}</textarea>
+    <div class="btns" style="margin-top:12px"><button class="btn primary">{{ _("保存修改") }}</button></div>
+  </form>
+  <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+    <form method="post" action="/m/{{ m.id }}/photos" enctype="multipart/form-data" class="row">
+      <input type="file" name="photos" accept="image/*" multiple class="grow">
+      <button class="btn small" data-busy="{{ _('上传中…') }}">{{ _("添加照片") }}</button>
+    </form>
+    <div class="btns" style="margin-top:10px">
+      {% if photos and ai_ready %}<form method="post" action="/m/{{ m.id }}/ocr"><button class="btn small">{{ _("AI 重新识别") }}</button></form>{% endif %}
+      {% if m.status != 'mastered' %}<form method="post" action="/m/{{ m.id }}/status"><input type="hidden" name="action" value="mastered"><button class="btn small">{{ _("直接标为掌握") }}</button></form>{% endif %}
+      {% if m.status != 'active' %}<form method="post" action="/m/{{ m.id }}/status"><input type="hidden" name="action" value="reopen"><button class="btn small">{{ _("重新开始复习") }}</button></form>{% endif %}
+      {% if m.status != 'archived' %}<form method="post" action="/m/{{ m.id }}/status"><input type="hidden" name="action" value="archive"><button class="btn small">{{ _("归档（不再复习）") }}</button></form>{% endif %}
+      {% if me.role == 'parent' or m.created_by == me.id %}<form method="post" action="/m/{{ m.id }}/status" onsubmit="return confirm({{ _('确定删除这道题和照片？')|tojson }})"><input type="hidden" name="action" value="delete"><button class="btn small" style="color:var(--bad)">{{ _("删除") }}</button></form>{% endif %}
+    </div>
+  </details>
+{% endif %}
+
+<h2>{{ _("复习记录") }}</h2>
+<div class="card">
+  {% for r in reviews %}
+  <div class="row" style="padding:4px 0">
+    {% if r.kind == 'practice' %}<span class="tag">{{ _("自己练习") }}</span>{% elif r.correct %}<span class="tag good">{{ _("✓ 对") }}</span>{% else %}<span class="tag bad">{{ _("✗ 错") }}</span>{% endif %}
+    <span class="muted small">{{ r.created_at[:16].replace('T',' ') }} · {{ r.by_name or _("家长") }}</span>
+    {% if r.note %}<span class="small">{{ r.note }}</span>{% endif %}
+  </div>
+  {% else %}<div class="muted">{{ _("还没有复习过") }}</div>{% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block body %}
+<h1 style="text-align:center;margin-top:30px">📒 {{ _("错题本") }}</h1>
+<p class="muted" style="text-align:center">{{ _("你是谁？") }}</p>
+{% if users %}
+<div class="who-grid">
+  {% for u in users %}
+  <a href="/login/{{ u.id }}">{{ {'child':'🧒','tutor':'👩‍🏫','parent':'🏠'}[u.role] }} {{ u.name }}
+    <small>{{ role_name(u.role) }}</small></a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">{{ _("还没有账号。请家长从 Olares 桌面打开本应用，在“设置”里添加。") }}</div>
+{% endif %}
+{% endblock %}

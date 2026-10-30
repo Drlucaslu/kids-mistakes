@@ -1,0 +1,14 @@
+<form method="post" action="/settings/users">
+  <input type="hidden" name="uid" value="{{ u.id if u else 0 }}">
+  <label class="f">{{ _("名字") }}</label><input type="text" name="name" value="{{ u.name if u else '' }}" required maxlength="40">
+  <label class="f">{{ _("角色") }}</label>
+  <div class="chips">{% for v in ['child', 'tutor', 'parent'] %}
+    <label><input type="radio" name="role" value="{{ v }}" {{ 'checked' if (u and u.role == v) or (not u and v == 'child') }}><span>{{ role_name(v) }}</span></label>{% endfor %}</div>
+  <label class="f">{{ _("老师负责的科目") }}</label>
+  <div class="chips">{% set us = (u.subjects if u else '')|split %}{% for s in SUBJECTS %}
+    <label><input type="checkbox" name="subjects" value="{{ s }}" {{ 'checked' if s in us }}><span>{{ s|subject }}</span></label>{% endfor %}</div>
+  <label class="f">{{ _("孩子年级") }}</label><input type="number" name="grade" min="1" max="12" value="{{ u.grade if u and u.grade else '' }}">
+  <label class="f">{{ _("新 PIN（不改留空）") if u else "PIN" }}</label><input type="password" name="pin" inputmode="numeric" pattern="[0-9]*" autocomplete="new-password">
+  {% if u %}<label class="f">{{ _("状态") }}</label><select name="active"><option value="1" {{ 'selected' if u.active }}>{{ _("正常") }}</option><option value="0" {{ 'selected' if not u.active }}>{{ _("停用") }}</option></select>{% endif %}
+  <div class="btns" style="margin-top:12px"><button class="btn primary">{{ _("保存") if u else _("添加") }}</button></div>
+</form>

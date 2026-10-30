@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>{{ _("设置") }}</h1>
+
+<h2>{{ _("语言") }}</h2>
+<form method="post" action="/settings/lang" class="card">
+  <label class="f">{{ _("界面语言（所有人都会看到）") }}</label>
+  <div class="chips big">
+    {% for code, name in LANGS.items() %}<label><input type="radio" name="lang" value="{{ code }}" {{ 'checked' if lang() == code }} onchange="this.form.submit()"><span>{{ name }}</span></label>{% endfor %}
+  </div>
+  <noscript><div class="btns" style="margin-top:8px"><button class="btn primary">{{ _("保存") }}</button></div></noscript>
+</form>
+
+<h2>{{ _("账号") }}</h2>
+<p class="muted small">{{ _("PIN：孩子至少 4 位，老师和家长至少 6 位。") }}</p>
+{% for u in users %}
+<details class="card">
+  <summary style="color:var(--ink)">{{ {'child':'🧒','tutor':'👩‍🏫','parent':'🏠'}[u.role] }} <b>{{ u.name }}</b>
+    <span class="muted small">{{ role_name(u.role) }}
+    {% if u.role == 'tutor' %} · {{ u.subjects|split|map('subject')|join('、' if lang() == 'zh' else ', ') }}{% endif %}
+    {% if u.grade %} · {{ _("{n} 年级", n=u.grade) }}{% endif %}{% if not u.active %} · {{ _("已停用") }}{% endif %}</span></summary>
+  {% with u=u %}{% include "_userform.html" %}{% endwith %}
+</details>
+{% endfor %}
+<details class="card" {{ 'open' if not users }}>
+  <summary><b>{{ _("＋ 添加账号") }}</b></summary>
+  {% with u=None %}{% include "_userform.html" %}{% endwith %}
+</details>
+
+<h2>{{ _("错因与知识点") }}</h2>
+<form method="post" action="/settings/lists" class="card">
+  <label class="f">{{ _("错因（每行一个）") }}</label><textarea name="causes" rows="8">{{ cause_list|join('\n') }}</textarea>
+  {% for s in SUBJECTS %}
+  <label class="f">{{ _("{s}知识点（每行一个）", s=s|subject) }}</label>
+  <textarea name="topics_{{ s }}" rows="5">{{ topic_cfg[s]|join('\n') }}</textarea>
+  {% endfor %}
+  <div class="btns" style="margin-top:12px"><button class="btn primary">{{ _("保存") }}</button></div>
+</form>
+
+<h2>{{ _("AI 模型") }}</h2>
+<form method="post" action="/settings/model" class="card">
+  <p>{{ _("当前：") }}<b>{{ model.label }}</b>{% if model.problem %} <span class="tag bad">{{ model.problem }}</span>{% endif %}
+    <br><span class="muted small">API Key: {{ model.key_hint }}</span></p>
+  <label class="f">{{ _("服务商") }}</label>
+  <select name="provider">
+    {% for v, l in [('', '跟随部署配置'), ('anthropic', 'Anthropic Claude（推荐，识图准）'), ('openai_compatible', 'OpenAI 兼容接口（本地/其他 VLM）'), ('mock', '演示（假数据）')] %}
+    <option value="{{ v }}" {{ 'selected' if model_over.provider == v }}>{{ _(l) }}</option>{% endfor %}
+  </select>
+  <label class="f">{{ _("模型名") }}</label><input type="text" name="model" value="{{ model_over.model or '' }}">
+  <label class="f">{{ _("Base URL（只有 OpenAI 兼容接口需要）") }}</label><input type="text" name="base_url" value="{{ model_over.base_url or '' }}">
+  <label class="f">{{ _("API Key（留空表示不改）") }}</label>
+  <input type="password" name="api_key" autocomplete="off" placeholder="sk-…">
+  {% if model.key_source == 'settings' %}<label class="small" style="display:block;margin-top:6px"><input type="checkbox" name="clear_key" value="1"> {{ _("删除设置页保存的 Key") }}</label>{% endif %}
+  <p class="muted small">{{ _("只把照片和题目文字发给模型，不发姓名。") }}</p>
+  <div class="btns"><button class="btn primary">{{ _("保存") }}</button>
+    <button class="btn" formaction="/settings/model/test" data-busy="{{ _('测试中…') }}">{{ _("测试连接") }}</button></div>
+</form>
+
+<h2>{{ _("备份") }}</h2>
+<div class="card">
+  <p class="muted small">{{ _("每天自动备份，保留 30 份（Olares 文件 → Data → cuotiben → app）。") }}</p>
+  <p>{% for b in backups %}<span class="tag">{{ b }}</span> {% else %}<span class="muted">{{ _("暂无") }}</span>{% endfor %}</p>
+  <form method="post" action="/settings/backup"><button class="btn small">{{ _("立即备份") }}</button></form>
+</div>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="row between">
+  <h1>{{ _("周报") }}</h1>
+  <div class="btns"><a class="btn small" href="/report?week={{ week - 1 }}">{{ _("‹ 上周") }}</a>{% if week < 0 %}<a class="btn small" href="/report?week={{ week + 1 }}">{{ _("下周 ›") }}</a>{% endif %}</div>
+</div>
+<p class="muted">{{ start }} — {{ end }}{% if week == 0 %}{{ _("（本周）") }}{% endif %}</p>
+{% for k, rows in data %}
+<h2>{{ k.name }}{% if k.grade %} · {{ _("{n} 年级", n=k.grade) }}{% endif %}</h2>
+{% for s, r in rows %}
+{% if r.open or r.total_mastered or r.tests or r.tasks or r.new %}
+<div class="card">
+  <div class="row between"><span class="tag {{ s }}" style="font-size:14px">{{ s|subject }}</span>
+    <span class="muted small">{{ _("复习中 {o} 题 · 累计掌握 {m} 题", o=r.open, m=r.total_mastered) }}</span></div>
+  <div class="stats" style="margin-top:10px;grid-template-columns:repeat(4,1fr)">
+    <div class="stat"><b>{{ r.new }}</b><span>{{ _("新错题") }}</span></div>
+    <div class="stat"><b>{{ r.mastered }}</b><span>{{ _("新掌握") }}</span></div>
+    <div class="stat"><b>{{ r.accuracy ~ '%' if r.accuracy is not none else '–' }}</b><span>{{ _("复测正确率（{c}/{t}）", c=r.correct, t=r.tests) }}</span></div>
+    <div class="stat"><b>{{ r.on_time ~ '%' if r.on_time is not none else '–' }}</b><span>{{ _("按时复习") }}{% if r.missed %}{{ _("（漏 {n}）", n=r.missed) }}{% endif %}</span></div>
+  </div>
+  <table class="t" style="margin-top:10px">
+    <tr><th style="width:30%">{{ _("常见错因") }}</th><td>{% for c, n in r.causes %}<span class="tag warn">{{ c }} {{ n }}</span> {% else %}<span class="muted">–</span>{% endfor %}</td></tr>
+    <tr><th>{{ _("薄弱知识点") }}</th><td>{% for t, n in r.topics %}<a class="tag" href="/book?child={{ k.id }}&subject={{ s }}&topic={{ t|urlencode }}">{{ t }} {{ n }}</a> {% else %}<span class="muted">–</span>{% endfor %}</td></tr>
+    <tr><th>{{ _("任务完成") }}</th><td>{% if r.tasks %}{{ r.tasks_done }}/{{ r.tasks }} ({{ r.task_rate }}%){% else %}<span class="muted">{{ _("本周没有任务") }}</span>{% endif %}</td></tr>
+  </table>
+</div>
+{% endif %}
+{% endfor %}
+{% else %}<div class="card empty">{{ _("还没有孩子账号") }}</div>{% endfor %}
+{% endblock %}

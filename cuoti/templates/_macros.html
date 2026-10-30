@@ -1,0 +1,26 @@
+{% macro qbody(m, photos, big=False) %}
+  {% if photos %}<div class="photos {{ 'big' if big }}">{% for f in photos %}<a href="/photo/{{ f }}" target="_blank"><img src="/photo/{{ f }}" loading="lazy" alt="{{ _('题目照片') }}"></a>{% endfor %}</div>{% endif %}
+  {% if m.question_text %}<div class="qtext" style="margin-top:8px">{{ m.question_text }}</div>{% endif %}
+{% endmacro %}
+
+{% macro tags(m) %}
+  <span class="tag {{ m.subject }}">{{ m.subject|subject }}</span>
+  {% if m.topic %}<span class="tag">{{ m.topic }}</span>{% endif %}
+  {% for c in m.causes|split %}<span class="tag warn">{{ c }}</span>{% endfor %}
+  {% if m.source == 'ai_variant' %}<span class="tag">{{ _("变式题") }}</span>{% endif %}
+  {% if m.status == 'mastered' %}<span class="tag good">{{ _("已掌握") }}</span>{% elif m.status == 'archived' %}<span class="tag">{{ _("已归档") }}</span>{% endif %}
+{% endmacro %}
+
+{% macro testbtns(m, next) %}
+<div class="btns" style="margin-top:10px">
+  <form method="post" action="/m/{{ m.id }}/test"><input type="hidden" name="correct" value="1"><input type="hidden" name="next" value="{{ next }}">
+    <button class="btn good">{{ _("✓ 做对了") }}</button></form>
+  <form method="post" action="/m/{{ m.id }}/test"><input type="hidden" name="correct" value="0"><input type="hidden" name="next" value="{{ next }}">
+    <button class="btn bad">{{ _("✗ 还是错") }}</button></form>
+</div>
+{% endmacro %}
+
+{% macro progress(m, need) %}
+  {% if m.status == 'mastered' %}{% if m.due_date %}{{ _("抽查：{d}", d=m.due_date|due) }}{% else %}{{ _("已完成抽查") }}{% endif %}
+  {% elif m.status == 'active' %}{{ _("连对 {s}/{n} · 下次：{d}", s=m.correct_streak, n=need, d=m.due_date|due) }}{% endif %}
+{% endmacro %}

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="{{ 'zh-CN' if lang() == 'zh' else 'en' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>{% block title %}{{ _("错题本") }}{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css?v={{ version }}">
+</head>
+<body>
+{% if me %}
+<div class="top">
+  <b>📒 {{ _("错题本") }}</b>
+  <span class="who">{{ me.name }}
+    {% if me.source != 'olares' %}<form method="post" action="/logout"><button class="linkbtn">{{ _("退出") }}</button></form>{% endif %}
+  </span>
+</div>
+{% endif %}
+<div class="wrap">
+  {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
+  {% block body %}{% endblock %}
+</div>
+{% if me %}
+{% set path = request.url.path %}
+<nav class="tabs">
+  {% if me.role == 'child' %}
+    <a href="/me" class="{{ 'on' if path == '/me' }}"><span class="i">☀️</span>{{ _("今天") }}</a>
+    <a href="/book" class="{{ 'on' if path.startswith('/book') }}"><span class="i">📒</span>{{ _("我的错题本") }}</a>
+  {% else %}
+    <a href="/today" class="{{ 'on' if path == '/today' }}"><span class="i">✅</span>{{ _("今日") }}</a>
+    <a href="/new" class="{{ 'on' if path == '/new' }}"><span class="i">📷</span>{{ _("录错题") }}</a>
+    <a href="/book" class="{{ 'on' if path.startswith('/book') }}"><span class="i">📒</span>{{ _("错题") }}</a>
+    <a href="/tasks" class="{{ 'on' if path == '/tasks' }}"><span class="i">📝</span>{{ _("任务") }}</a>
+    <a href="/report" class="{{ 'on' if path == '/report' }}"><span class="i">📊</span>{{ _("周报") }}</a>
+    {% if me.role == 'parent' %}<a href="/settings" class="{{ 'on' if path == '/settings' }}"><span class="i">⚙️</span>{{ _("设置") }}</a>{% endif %}
+  {% endif %}
+</nav>
+{% endif %}
+<script>
+// disable submit buttons after the first tap (slow uploads, double taps)
+document.addEventListener('submit', e => {
+  const b = e.submitter; if (b && !b.dataset.keep) { setTimeout(() => { b.disabled = true; if (b.dataset.busy) b.textContent = b.dataset.busy; }, 0); }
+});
+</script>
+{% block script %}{% endblock %}
+</body>
+</html>

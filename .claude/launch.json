@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "cuoti-dev",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "export DATA_DIR=$HOME/.cache/cuoti/dev INIT_PARENT_PIN=123456 MODEL_PROVIDER=mock PORT=8765; .venv/bin/python scripts/seed_demo.py && exec .venv/bin/python -m cuoti"],
+      "port": 8765
+    }
+  ]
+}

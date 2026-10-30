@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="card empty" style="margin-top:30px">
+  <p style="font-size:18px">😕 {{ text }}</p>
+  <p><a class="btn" href="javascript:history.back()">{{ _("返回") }}</a> <a class="btn" href="/">{{ _("回首页") }}</a></p>
+</div>
+{% endblock %}

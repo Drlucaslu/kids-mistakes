@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block body %}
+<p><a href="/login">{{ _("← 换人") }}</a></p>
+<h1 style="text-align:center">{{ _("{name}，请输入 PIN", name=u.name) }}</h1>
+{% if err %}<div class="flash err" style="text-align:center">{{ err }}</div>{% endif %}
+<form method="post" id="f">
+  <input type="hidden" name="pin" id="pin">
+  <div class="pindots" id="dots"></div>
+  <div class="pinpad">
+    {% for n in [1,2,3,4,5,6,7,8,9] %}<button type="button" data-k="{{ n }}" data-keep="1">{{ n }}</button>{% endfor %}
+    <button type="button" data-k="del" data-keep="1">⌫</button>
+    <button type="button" data-k="0" data-keep="1">0</button>
+    <button type="submit" style="background:var(--accent);color:#fff;font-size:20px">{{ _("进入") }}</button>
+  </div>
+</form>
+{% endblock %}
+{% block script %}
+<script>
+const pin = document.getElementById('pin'), dots = document.getElementById('dots');
+const draw = () => dots.textContent = '•'.repeat(pin.value.length);
+document.querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
+  const k = b.dataset.k; pin.value = k === 'del' ? pin.value.slice(0, -1) : (pin.value + k).slice(0, 12); draw();
+});
+document.addEventListener('keydown', e => {
+  if (/^\d$/.test(e.key)) { pin.value = (pin.value + e.key).slice(0, 12); draw(); }
+  else if (e.key === 'Backspace') { pin.value = pin.value.slice(0, -1); draw(); }
+  else if (e.key === 'Enter') document.getElementById('f').submit();
+});
+</script>
+{% endblock %}

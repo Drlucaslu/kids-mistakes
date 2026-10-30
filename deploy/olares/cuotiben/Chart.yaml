@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cuotiben
+description: 家庭错题本 — tutor 录错题、间隔复习、任务跟踪、家长周报
+type: application
+version: 0.1.8
+appVersion: '0.1.8'

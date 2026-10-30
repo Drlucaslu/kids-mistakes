@@ -1,0 +1,29 @@
+[project]
+name = "cuoti"
+version = "0.1.8"
+description = "家庭错题本 + 任务跟踪（tutor 录入、间隔复习、家长周报），部署在 Olares"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "pillow>=10.4",
+    "httpx>=0.27",
+    "anthropic>=0.70",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.setuptools]
+packages = ["cuoti"]
+
+[tool.ruff]
+line-length = 110
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff.lint]
+ignore = ["B008", "C408"]  # FastAPI Form()/File() defaults are the framework idiom
